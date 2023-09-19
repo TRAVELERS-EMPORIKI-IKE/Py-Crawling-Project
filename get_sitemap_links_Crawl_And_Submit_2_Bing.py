@@ -216,6 +216,7 @@ async def crawl_url(url, user_agent):
             end_time = current_time()
             duration = end_time - start_time
             logging.error(f"Failed to crawl {url}. Exception: {e}, Duration: {duration:.2f} seconds")
+            await asyncio.sleep(300.00)  # Introduce 300 seconds delay for rate limiting
 
 def write_to_csv(counter, current_date):
     with open('bing_iterations.csv', 'w') as f:
@@ -224,6 +225,7 @@ def write_to_csv(counter, current_date):
 async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_limit):
     try:
         counter = 0  # Initialize the counter
+        crawl_counter = 0  # Initialize the crawl counter
         tz = timezone(timedelta(hours=3))  # UTC+3 Timezone
         now = datetime.now(tz)  # Moved up
         current_date = now.date()  # Moved up
@@ -260,19 +262,21 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
                         await submit_to_bing(url, session)
                         counter += 1  # Increment the counter
                         write_to_csv(counter, now)
-                        print(counter) #display counter
+                        #print(counter) #display counter
+                        print(f'\rSubmited to Bing URLs: {counter}', end='', flush=True) #display counter
                     else:
                         # Pause until 03:00:01 (UTC+3 Time)
                         next_run = datetime(now.year, now.month, now.day, 3, 0, 1, tzinfo=tz)
                         next_run += timedelta(days=1)
                         if now >= next_run:
-                            next_run += timedelta(days=1)
+                            #next_run += timedelta(days=1)
                             await asyncio.sleep(bing_delay)  # Introduce delay for rate limiting
                             await submit_to_bing(url, session)
                             counter = 0  # Reset the counter
                             counter += 1  # Increment the counter
                             write_to_csv(counter, now)
-                            print(counter) #display counter
+                            #print(counter) #display counter
+                            print(f'\rSubmited to Bing URLs: {counter}', end='', flush=True) #display counter
                         else:
                             break
                 # Second loop to crawl URLs
@@ -283,12 +287,16 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
                         await asyncio.sleep(delay)  # Introduce delay for rate limiting
                         task = asyncio.ensure_future(crawl_url(url, user_agent))
                         tasks.append(task)
+                        crawl_counter += 1  # Increment the crawl counter
+                        print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True) #display crawl counter
 
                     for user_agent in mobile_agents:  # Loop through mobile user agents (if you want to use them)
                         await asyncio.sleep(delay)  # Introduce delay for rate limiting
                         task = asyncio.ensure_future(crawl_url(url, user_agent))
                         tasks.append(task)
-
+                        crawl_counter += 1  # Increment the crawl counter
+                        print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True) #display crawl counter  
+ 
                 await asyncio.gather(*tasks)
 
     except Exception as e:
