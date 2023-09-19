@@ -20,8 +20,6 @@ from google.oauth2 import service_account
 from google.auth.transport.requests import AuthorizedSession
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Create a timezone offset for Athens (UTC+2)
-athens_timezone = pytz.timezone('Europe/Athens')
 #athens_dt_pytz = utc_dt.astimezone(athens_tz)  # Convert to Athens time, automatically accounting for DST
 #print("Using datetime.timezone:", athens_timezone) # Debug Print
 #print("Using pytz.timezone:", athens_dt_pytz) #debug Print
@@ -32,6 +30,12 @@ try:
     config.read('crawler_config.ini')
 except Exception as e:
     logging.error(f"Failed to read the configuration file. Exception: {e}")
+
+# Get the timezone string from the configuration file
+timezone_str = config['Timezone']['timezone']
+
+# Create a timezone offset from the timezone string
+program_timezone = pytz.timezone(timezone_str)
 
 # Get the data_folder path from ini file
 data_folder = config['Paths']['data_folder']
@@ -91,7 +95,7 @@ def get_sitemap_index(url):
             if lastmod:
                 lastmod_str = lastmod.string.replace("<![CDATA[", "").replace("]]>", "")  # Remove CDATA
                 lastmod_time = datetime.fromisoformat(lastmod_str)  # Parse to datetime object
-                lastmod_time = lastmod_time.astimezone(athens_timezone)  # Convert to Athens time
+                lastmod_time = lastmod_time.astimezone(program_timezone)  # Convert to Athens time
                 lastmod_time_str = lastmod_time.strftime('%Y-%m-%dT%H:%M:%S+02:00')  # Convert to string in desired format
                 lastmod_times.append(lastmod_time_str)
                 logging.debug(f"Sitemap def: {sitemaps}, Last Modified Time def: {lastmod_times}")
