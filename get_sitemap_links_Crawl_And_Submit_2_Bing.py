@@ -21,10 +21,7 @@ from google.auth.transport.requests import AuthorizedSession
 from oauth2client.service_account import ServiceAccountCredentials
 
 # Initialize logging
-logging.basicConfig(filename='crawling_log.txt', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Initialize logging for loop
-loop_log = open('Loop_Log.txt', 'a')
+logging.basicConfig(filename=txt_crawling_log, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Create a timezone offset for Athens (UTC+2)
 athens_timezone = pytz.timezone('Europe/Athens')
@@ -38,6 +35,26 @@ try:
     config.read('crawler_config.ini')
 except Exception as e:
     logging.error(f"Failed to read the configuration file. Exception: {e}")
+
+# Get the data_folder path from ini file
+data_folder = config['Paths']['data_folder']
+
+# Convert it to an absolute path based on the script's location
+current_directory = os.path.dirname(os.path.abspath(__file__))
+data_folder_absolute = os.path.join(current_directory, data_folder.strip('.\\'))
+
+# Finally, construct the complete path to your csv and txt files
+csv_bing_iterations = os.path.join(data_folder_absolute, 'bing_iterations.csv')
+csv_Bing_Submission = os.path.join(data_folder_absolute, 'Bing_Submission.csv')
+csv_Bing_Submission_Errors = os.path.join(data_folder_absolute, 'Bing_Submission_Errors.csv')
+csv_Google_Submission = os.path.join(data_folder_absolute, 'Google_Submission.csv')
+csv_sitemap_links = os.path.join(data_folder_absolute, 'sitemap_links.csv')
+txt_datetime = os.path.join(data_folder_absolute, 'datetime.txt')
+txt_crawling_log = os.path.join(data_folder_absolute, 'crawling_log.txt')
+txt_loop_log = os.path.join(data_folder_absolute, 'Loop_Log.txt')
+
+# Initialize logging for loop
+loop_log = open(txt_loop_log, 'a')
 
 # Function to read the last loop time from a file
 def read_last_loop_time(filename):
@@ -128,7 +145,7 @@ async def submit_to_bing(url, session):
     try:
         bing_key = config['BingIndexNow']['key']
         # Check if the URL exists in Bing_Submission.csv
-        with open('Bing_Submission.csv', 'r', newline='', encoding='utf-8') as csvfile:
+        with open(csv_Bing_Submission, 'r', newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
             if url not in [row[0] for row in reader]:
                 # Submit the URL to Bing IndexNow
@@ -138,14 +155,20 @@ async def submit_to_bing(url, session):
                     logging.info(f"Successfully submitted {url} to Bing IndexNow.")
                 
                 # Append the URL to Bing_Submission.csv
-                with open('Bing_Submission.csv', 'a', newline='', encoding='utf-8') as csvfile:
+                with open(csv_Bing_Submission, 'a', newline='', encoding='utf-8') as csvfile:
                     writer = csv.writer(csvfile)
                     writer.writerow([url])
     except Exception as e:
         logging.error(f"Failed to submit {url} to Bing IndexNow. Exception: {e}")
-        with open('Bing_Submission_Errors.csv', 'a', newline='', encoding='utf-8') as csvfile:
+        with open(csv_Bing_Submission_Errors, 'a', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([url])
+
+async def countdown_timer(seconds):
+    for i in range(seconds, 0, -1):
+        print(f'\rCountdown: {i} seconds remaining', end='', flush=True)
+        await asyncio.sleep(1)
+    print('\rCountdown complete!                   ', end='', flush=True)
 					
 def submit_to_google(url):
     try:
@@ -160,7 +183,7 @@ def submit_to_google(url):
         # Initialize http Variable with the credentials
         http = credentials.authorize(httplib2.Http())
 
-        with open('Google_Submission.csv', 'r', newline='', encoding='utf-8') as csvfile:
+        with open(csv_Google_Submission, 'r', newline='', encoding='utf-8') as csvfile:
             reader = csv.reader(csvfile)
             if url not in [row[0] for row in reader]:
                 # Prepare the request data for URL notification
@@ -179,7 +202,7 @@ def submit_to_google(url):
                         logging.info(f"Successfully submitted {url} to Google Indexing API")
 
                         # Append the URL to Google_Submission.csv only if successful
-                        with open('Google_Submission.csv', 'a', newline='', encoding='utf-8') as csvfile:
+                        with open(csv_Google_Submission, 'a', newline='', encoding='utf-8') as csvfile:
                             writer = csv.writer(csvfile)
                             writer.writerow([url])
                     else:
@@ -216,10 +239,10 @@ async def crawl_url(url, user_agent):
             end_time = current_time()
             duration = end_time - start_time
             logging.error(f"Failed to crawl {url}. Exception: {e}, Duration: {duration:.2f} seconds")
-            await asyncio.sleep(300.00)  # Introduce 300 seconds delay for rate limiting
+            await countdown_timer(300.00)  # call the countdown function and request a 300 seconds delay for rate limiting
 
-def write_to_csv(counter, current_date):
-    with open('bing_iterations.csv', 'w') as f:
+async def write_to_csv(counter, current_date):
+    with open(csv_bing_iterations, 'w') as f:
         f.write(f"{current_date},{counter}")
 
 async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_limit):
@@ -231,8 +254,8 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
         current_date = now.date()  # Moved up
                 		
         # Check if bing_iterations.csv exists and read counter value
-        if os.path.exists('bing_iterations.csv'):
-            with open('bing_iterations.csv', 'r') as f:
+        if os.path.exists(csv_bing_iterations):
+            with open(csv_bing_iterations, 'r') as f:
                 try:
                         last_record = f.readlines()[-1].strip().split(',')
                         last_date = datetime.strptime(last_record[0], '%Y-%m-%d %H:%M:%S.%f%z').date()
@@ -249,7 +272,7 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
         bing_delay = 1 / bing_rate_limit  # time to wait between requests to Bing IndexNow
 
         async with aiohttp.ClientSession() as session:  # Create a session here
-            with open('sitemap_links.csv', 'r', newline='', encoding='utf-8') as sitemap_reader_csvfile:
+            with open(csv_sitemap_links, 'r', newline='', encoding='utf-8') as sitemap_reader_csvfile:
                 sitemap_links_reader = csv.reader(sitemap_reader_csvfile)
                 #tasks = []
                 for row in sitemap_links_reader:
@@ -307,7 +330,7 @@ def main():
     while True:
         try:
             # Clear the previous crawling log
-            with open('crawling_log.txt', 'w'):
+            with open(txt_crawling_log, 'w'):
                 pass
 
             # Read user agents, sitemap URLs, and rate limit from the configuration file
@@ -318,7 +341,7 @@ def main():
             bing_rate_limit = float(config['RateLimit']['bing_requests_per_second'])
 
             # Read the last loop time
-            current_datetime = read_last_loop_time('datetime.txt')
+            current_datetime = read_last_loop_time(txt_datetime)
             #print (current_datetime)
             if current_datetime is None:
                 return
@@ -329,7 +352,7 @@ def main():
             loop_log.write(f'Start Time: {loop_start_datetime}\n')
 
             # Open a CSV file to append links
-            with open('sitemap_links.csv', 'a', newline='', encoding='utf-8') as csvfile:
+            with open(csv_sitemap_links, 'a', newline='', encoding='utf-8') as csvfile:
                 writer = csv.writer(csvfile)
 
             # Timer for 'Get individual sitemaps'
@@ -345,7 +368,7 @@ def main():
                 start_time = current_time()
                 
                 # Open a CSV file to append links
-                with open('sitemap_links.csv', 'a', newline='', encoding='utf-8') as csvfile:
+                with open(csv_sitemap_links, 'a', newline='', encoding='utf-8') as csvfile:
                     writer = csv.writer(csvfile)
                     
                     for sitemap, lastmod_time in zip(sitemaps, lastmod_times):
@@ -361,14 +384,14 @@ def main():
 
             # Timer for 'Remove all the duplicate URLs'
             start_time = current_time()
-            remove_duplicates_from_csv('sitemap_links.csv')
-            remove_duplicates_from_csv('Bing_Submission.csv')
-            remove_duplicates_from_csv('Google_Submission.csv')
+            remove_duplicates_from_csv(csv_sitemap_links)
+            remove_duplicates_from_csv(csv_Bing_Submission)
+            remove_duplicates_from_csv(csv_Google_Submission)
             elapsed_time = timedelta(seconds=int(current_time() - start_time))
             print(f"Remove all the duplicate URLs: {elapsed_time}")
 
             # Update the last loop time
-            write_last_loop_time('datetime.txt', loop_start_datetime)
+            write_last_loop_time(txt_datetime, loop_start_datetime)
 
             # Timer for 'Asynchronous crawling'
             start_time = current_time()
