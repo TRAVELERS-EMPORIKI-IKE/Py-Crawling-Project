@@ -20,9 +20,6 @@ from google.oauth2 import service_account
 from google.auth.transport.requests import AuthorizedSession
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Initialize logging
-logging.basicConfig(filename=txt_crawling_log, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 # Create a timezone offset for Athens (UTC+2)
 athens_timezone = pytz.timezone('Europe/Athens')
 #athens_dt_pytz = utc_dt.astimezone(athens_tz)  # Convert to Athens time, automatically accounting for DST
@@ -52,6 +49,9 @@ csv_sitemap_links = os.path.join(data_folder_absolute, 'sitemap_links.csv')
 txt_datetime = os.path.join(data_folder_absolute, 'datetime.txt')
 txt_crawling_log = os.path.join(data_folder_absolute, 'crawling_log.txt')
 txt_loop_log = os.path.join(data_folder_absolute, 'Loop_Log.txt')
+
+# Initialize logging
+logging.basicConfig(filename=txt_crawling_log, level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Initialize logging for loop
 loop_log = open(txt_loop_log, 'a')
