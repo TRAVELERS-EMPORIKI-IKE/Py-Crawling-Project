@@ -436,7 +436,7 @@ def main():
             loop_log.close()
 
              # Check if all flags are False
-            if not (sitecrawler or bingsubmit or some_other_flag):
+            if not (sitecrawler or bingsubmit or googlesubmit):
                 print("All functions are disabled. Exiting.")
                 break
 
