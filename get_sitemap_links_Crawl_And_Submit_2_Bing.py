@@ -31,6 +31,11 @@ try:
 except Exception as e:
     logging.error(f"Failed to read the configuration file. Exception: {e}")
 
+# Pass the configuration for function run
+googlesubmit = config.getboolean('FunctionRun', 'googlesubmit', fallback=False)
+bingsubmit = config.getboolean('FunctionRun', 'bingsubmit', fallback=False)
+sitecrawler = config.getboolean('FunctionRun', 'sitecrawler', fallback=False)
+
 # Get the timezone string from the configuration file
 timezone_str = config['Timezone']['timezone']
 
@@ -169,10 +174,12 @@ async def submit_to_bing(url, session):
             writer.writerow([url])
 
 async def countdown_timer(seconds):
+    print("\n")  # This will move the cursor to a new line
     for i in range(seconds, 0, -1):
         print(f'\rCountdown: {i} seconds remaining', end='', flush=True)
         await asyncio.sleep(1)
     print('\rCountdown complete!                   ', end='', flush=True)
+    print("\n")  # This will move the cursor to a new line
 					
 def submit_to_google(url):
     try:
@@ -249,6 +256,28 @@ async def write_to_csv(counter, current_date):
     with open(csv_bing_iterations, 'w') as f:
         f.write(f"{current_date},{counter}")
 
+async def crawl_all_urls_2(desktop_agents, mobile_agents, delay, crawl_counter, session):
+    try:
+        tasks = []
+        print("\n")  # This will move the cursor to a new line
+        for row in sitemap_links_reader:
+            url = row[0]                
+            for user_agent in desktop_agents:  # Loop through desktop user agents
+                await asyncio.sleep(delay)  # Introduce delay for rate limiting
+                task = asyncio.ensure_future(crawl_url(url, user_agent))
+                tasks.append(task)
+                crawl_counter += 1  # Increment the crawl counter
+                print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True) #display crawl count
+            for user_agent in mobile_agents:  # Loop through mobile user agents (if you want to use them)
+                await asyncio.sleep(delay)  # Introduce delay for rate limiting
+                task = asyncio.ensure_future(crawl_url(url, user_agent))
+                tasks.append(task)
+                crawl_counter += 1  # Increment the crawl counter
+                print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True) #display crawl counter 
+        await asyncio.gather(*tasks)
+    except Exception as e:
+        logging.error(f"An unexpected error occurred in crawl_all_urls_2. Exception: {e}") 
+
 async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_limit):
     try:
         counter = 0  # Initialize the counter
@@ -284,14 +313,14 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
                     now = datetime.now(tz)
                     current_date = now.date()
                     # Check the counter
-                    if counter < 10000:
+                    if bingsubmit == True and counter < 10000:
                         await asyncio.sleep(bing_delay)  # Introduce delay for rate limiting
                         await submit_to_bing(url, session)
                         counter += 1  # Increment the counter
                         await write_to_csv(counter, now)
                         #print(counter) #display counter
                         print(f'\rSubmited to Bing URLs: {counter}', end='', flush=True) #display counter
-                    else:
+                    elif bingsubmit == True and counter >= 10000:
                         # Pause until 03:00:01 (UTC+3 Time)
                         next_run = datetime(now.year, now.month, now.day, 3, 0, 1, tzinfo=tz)
                         next_run += timedelta(days=1)
@@ -307,26 +336,8 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
                         else:
                             break
                 # Second loop to crawl URLs
-                tasks = []
-                print("\n")  # This will move the cursor to a new line
-                for row in sitemap_links_reader:
-                    url = row[0]                
-                    for user_agent in desktop_agents:  # Loop through desktop user agents
-                        await asyncio.sleep(delay)  # Introduce delay for rate limiting
-                        task = asyncio.ensure_future(crawl_url(url, user_agent))
-                        tasks.append(task)
-                        crawl_counter += 1  # Increment the crawl counter
-                        print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True) #display crawl counter
-
-                    for user_agent in mobile_agents:  # Loop through mobile user agents (if you want to use them)
-                        await asyncio.sleep(delay)  # Introduce delay for rate limiting
-                        task = asyncio.ensure_future(crawl_url(url, user_agent))
-                        tasks.append(task)
-                        crawl_counter += 1  # Increment the crawl counter
-                        print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True) #display crawl counter  
- 
-                await asyncio.gather(*tasks)
-
+                if sitecrawler == True:
+                    await crawl_all_urls_2(desktop_agents, mobile_agents, delay, crawl_counter, session)
     except Exception as e:
         logging.error(f"An unexpected error occurred in crawl_all_urls. Exception: {e}")
 
@@ -412,6 +423,11 @@ def main():
             loop_log.write(f'End Time: {end_time}\n')
             loop_log.write(f'Duration: {duration}\n\n')
             loop_log.close()
+
+             # Check if all flags are False
+            if not (sitecrawler or bingsubmit or some_other_flag):
+                print("All functions are disabled. Exiting.")
+                break
 
             # Sleep for a specified time before the next iteration
             time.sleep(60)
