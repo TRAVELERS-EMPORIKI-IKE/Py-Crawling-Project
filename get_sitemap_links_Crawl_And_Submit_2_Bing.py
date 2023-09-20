@@ -256,24 +256,35 @@ async def write_to_csv(counter, current_date):
     with open(csv_bing_iterations, 'w') as f:
         f.write(f"{current_date},{counter}")
 
-async def crawl_all_urls_2(desktop_agents, mobile_agents, delay, crawl_counter, session):
+async def crawl_all_urls_2(desktop_agents, mobile_agents, delay, crawl_counter, session,sitemap_links_reader):
     try:
         tasks = []
         print("\n")  # This will move the cursor to a new line
-        for row in sitemap_links_reader:
-            url = row[0]                
-            for user_agent in desktop_agents:  # Loop through desktop user agents
-                await asyncio.sleep(delay)  # Introduce delay for rate limiting
-                task = asyncio.ensure_future(crawl_url(url, user_agent))
-                tasks.append(task)
-                crawl_counter += 1  # Increment the crawl counter
-                print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True) #display crawl count
-            for user_agent in mobile_agents:  # Loop through mobile user agents (if you want to use them)
-                await asyncio.sleep(delay)  # Introduce delay for rate limiting
-                task = asyncio.ensure_future(crawl_url(url, user_agent))
-                tasks.append(task)
-                crawl_counter += 1  # Increment the crawl counter
-                print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True) #display crawl counter 
+        user_agent_index = 0  # Initialize an index variable to keep track of the user agents
+        row = next(sitemap_links_reader, None)
+        while row:
+            url = row[0]
+    
+            # Cycle through desktop user agents
+            selected_desktop_agent = desktop_agents[user_agent_index % len(desktop_agents)]
+            await asyncio.sleep(delay)
+            task = asyncio.ensure_future(crawl_url(url, selected_desktop_agent))
+            tasks.append(task)
+            crawl_counter += 1
+            print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True)
+    
+            # Cycle through mobile user agents
+            selected_mobile_agent = mobile_agents[user_agent_index % len(mobile_agents)]
+            await asyncio.sleep(delay)
+            task = asyncio.ensure_future(crawl_url(url, selected_mobile_agent))
+            tasks.append(task)
+            crawl_counter += 1
+            print(f'\rCrawled URLs: {crawl_counter}', end='', flush=True)
+    
+            # Increment the user agent index
+            user_agent_index += 1
+    
+            row = next(sitemap_links_reader, None)  # Move to the next row
         await asyncio.gather(*tasks)
     except Exception as e:
         logging.error(f"An unexpected error occurred in crawl_all_urls_2. Exception: {e}") 
@@ -337,7 +348,7 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
                             break
                 # Second loop to crawl URLs
                 if sitecrawler == True:
-                    await crawl_all_urls_2(desktop_agents, mobile_agents, delay, crawl_counter, session)
+                    await crawl_all_urls_2(desktop_agents, mobile_agents, delay, crawl_counter, session, sitemap_links_reader)
     except Exception as e:
         logging.error(f"An unexpected error occurred in crawl_all_urls. Exception: {e}")
 
