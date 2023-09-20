@@ -288,7 +288,7 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
                         await asyncio.sleep(bing_delay)  # Introduce delay for rate limiting
                         await submit_to_bing(url, session)
                         counter += 1  # Increment the counter
-                        write_to_csv(counter, now)
+                        await write_to_csv(counter, now)
                         #print(counter) #display counter
                         print(f'\rSubmited to Bing URLs: {counter}', end='', flush=True) #display counter
                     else:
@@ -301,7 +301,7 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
                             await submit_to_bing(url, session)
                             counter = 0  # Reset the counter
                             counter += 1  # Increment the counter
-                            write_to_csv(counter, now)
+                            await write_to_csv(counter, now)
                             #print(counter) #display counter
                             print(f'\rSubmited to Bing URLs: {counter}', end='', flush=True) #display counter
                         else:
