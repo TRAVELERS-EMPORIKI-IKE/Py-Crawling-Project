@@ -308,6 +308,7 @@ async def crawl_all_urls(desktop_agents, mobile_agents, rate_limit, bing_rate_li
                             break
                 # Second loop to crawl URLs
                 tasks = []
+                print("\n")  # This will move the cursor to a new line
                 for row in sitemap_links_reader:
                     url = row[0]                
                     for user_agent in desktop_agents:  # Loop through desktop user agents
