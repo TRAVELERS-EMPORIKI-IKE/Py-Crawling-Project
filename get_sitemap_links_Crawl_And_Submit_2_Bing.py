@@ -172,6 +172,7 @@ async def submit_to_bing(url, session):
         with open(csv_Bing_Submission_Errors, 'a', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow([url])
+            await countdown_timer(300.00)  # call the countdown function and request a 300 seconds delay for rate limiting
 
 async def countdown_timer(seconds):
     print("\n")  # This will move the cursor to a new line
