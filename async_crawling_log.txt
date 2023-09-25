@@ -1,0 +1,2 @@
+2023-09-22 22:56:09,903 - DEBUG - Failed to read the configuration file. Exception: invalid literal for int() with base 10: '0.5'
+2023-09-22 22:56:09,904 - DEBUG - Using proactor: IocpProactor
